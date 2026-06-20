@@ -24,6 +24,14 @@ public class CarController : MonoBehaviour
     [SerializeField] float steerSmoothing = 6f;
     [SerializeField] float throttleSmoothing = 3f;
 
+    [Header("Wheel Mesh Alignment")]
+    [Tooltip("Extra rotation applied to wheel meshes to match how the model was authored. Try (0,0,0) first.")]
+    [SerializeField] Vector3 wheelMeshRotationOffset = Vector3.zero;
+
+    [Header("Physics Stability")]
+    [Tooltip("Lower = more stable, higher = more tippy. Should sit roughly at the car's floor level, slightly forward of center.")]
+    [SerializeField] Vector3 centerOfMassOffset = new Vector3(0f, -0.4f, 0.1f);
+
     public float SpeedKmh { get; private set; }
 
     Rigidbody rb;
@@ -36,7 +44,7 @@ public class CarController : MonoBehaviour
     void Awake()
     {
         rb = GetComponent<Rigidbody>();
-        rb.centerOfMass = new Vector3(0f, -0.4f, 0.1f);
+        rb.centerOfMass = centerOfMassOffset;
 
         input = new InputSystem_Actions();
 
@@ -160,6 +168,6 @@ public class CarController : MonoBehaviour
     {
         if (mesh == null) return;
         col.GetWorldPose(out Vector3 pos, out Quaternion rot);
-        mesh.SetPositionAndRotation(pos, rot * Quaternion.Euler(0, 0, 90));
+        mesh.SetPositionAndRotation(pos, rot * Quaternion.Euler(wheelMeshRotationOffset));
     }
 }
