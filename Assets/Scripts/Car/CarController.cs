@@ -24,13 +24,46 @@ public class CarController : MonoBehaviour
     [SerializeField] float steerSmoothing = 6f;
     [SerializeField] float throttleSmoothing = 3f;
 
+    [Header("Grip (Inertial-Drift style)")]
+    [Tooltip("Front tyre sideways grip. Keep high so the steering always has authority to place the car.")]
+    [SerializeField] float frontGrip = 3.2f;
+    [Tooltip("Rear tyre sideways grip. Lower = the back slides out more readily, giving the drift-into-corners feel. Raise for a grippier, tamer car.")]
+    [SerializeField] float rearGrip = 1.6f;
+
+    [Header("Drift Stability (raise to be less chaotic)")]
+    [Tooltip("How hard the car is servo-steered toward the rotation your input asks for. This both makes drifts responsive AND resists spinning out — the main anti-chaos dial.")]
+    [SerializeField] float driftStability = 4.5f;
+    [Tooltip("Fastest the car will rotate (deg/sec) from steering while sliding. Higher = quicker, wilder direction changes.")]
+    [SerializeField] float maxDriftYawRate = 90f;
+    [Tooltip("The slide is held within this angle (deg) between where the car points and where it's actually travelling. Bigger = wilder drift angles.")]
+    [SerializeField] float maxDriftAngle = 38f;
+    [Tooltip("How firmly the car straightens once the slide exceeds Max Drift Angle. The safety net against full spins.")]
+    [SerializeField] float driftCounterStrength = 5f;
+
+    [Header("Handbrake (hold Space / gamepad South)")]
+    [Tooltip("Rear grip while the handbrake is held, for deliberate bigger slides. Lower = looser.")]
+    [SerializeField] float driftSidewaysStiffness = 0.7f;
+    [Tooltip("How quickly the rear tyres lose / regain grip on press / release. Higher = snappier, lower = smoother.")]
+    [SerializeField] float driftGripSmoothing = 8f;
+    [Tooltip("Light rear brake applied while handbraking to help break traction.")]
+    [SerializeField] float driftRearBrake = 200f;
+
     [Header("Wheel Mesh Alignment")]
     [Tooltip("Extra rotation applied to wheel meshes to match how the model was authored. Try (0,0,0) first.")]
     [SerializeField] Vector3 wheelMeshRotationOffset = Vector3.zero;
 
     [Header("Physics Stability")]
     [Tooltip("Lower = more stable, higher = more tippy. Should sit roughly at the car's floor level, slightly forward of center.")]
-    [SerializeField] Vector3 centerOfMassOffset = new Vector3(0f, -0.4f, 0.1f);
+    [SerializeField] Vector3 centerOfMassOffset = new Vector3(0f, -0.5f, 0.1f);
+    [Tooltip("Stiffness of the anti-roll (stabilizer) bars. Higher = resists body roll / flipping harder. This is the main anti-flip control.")]
+    [SerializeField] float antiRollForce = 6000f;
+    [Tooltip("Extra downward force scaled by speed to keep the car planted through turns.")]
+    [SerializeField] float downforce = 80f;
+    [Tooltip("Hard cap on how fast the body can rotate (rad/s). Stops violent flips/spins from ever building up.")]
+    [SerializeField] float maxAngularVelocity = 3.5f;
+    [Tooltip("How much steering is reduced at top speed (0 = none, 1 = steering fully cut). Prevents fast-turn flips.")]
+    [Range(0f, 1f)]
+    [SerializeField] float highSpeedSteerReduction = 0.3f;
 
     public float SpeedKmh { get; private set; }
 
@@ -41,10 +74,20 @@ public class CarController : MonoBehaviour
     float currentThrottle;
     float rawThrottle;
 
+    // Drift state
+    WheelFrictionCurve rearSidewaysCurve;
+    float baseSidewaysStiffness;
+    float currentRearStiffness;
+    bool handbrake;
+
     void Awake()
     {
         rb = GetComponent<Rigidbody>();
         rb.centerOfMass = centerOfMassOffset;
+        rb.maxAngularVelocity = maxAngularVelocity;
+        // Smooths the body between the fixed physics steps for rendering — without
+        // this the camera pumps in/out and the wheels look like they judder.
+        rb.interpolation = RigidbodyInterpolation.Interpolate;
 
         input = new InputSystem_Actions();
 
@@ -53,25 +96,39 @@ public class CarController : MonoBehaviour
 
     void ConfigureWheelFriction()
     {
-        // High stiffness = grippy, no drifting
         var forward = new WheelFrictionCurve
         {
             extremumSlip = 0.4f, extremumValue = 1f,
             asymptoteSlip = 0.8f, asymptoteValue = 0.75f,
             stiffness = 1.5f
         };
-        var sideways = new WheelFrictionCurve
+
+        // Grippy front so steering always places the car; looser rear so the
+        // back slides into corners (Inertial-Drift style). The yaw stabilizer
+        // then keeps that slide controllable.
+        var frontSideways = new WheelFrictionCurve
         {
             extremumSlip = 0.2f, extremumValue = 1f,
-            asymptoteSlip = 0.5f, asymptoteValue = 0.75f,
-            stiffness = 2.5f
+            asymptoteSlip = 0.5f, asymptoteValue = 0.9f,
+            stiffness = frontGrip
         };
+        var rearSideways = frontSideways;
+        rearSideways.stiffness = rearGrip;
 
-        foreach (var w in new[] { frontLeft, frontRight, rearLeft, rearRight })
-        {
-            w.forwardFriction = forward;
-            w.sidewaysFriction = sideways;
-        }
+        frontLeft.forwardFriction  = forward;
+        frontRight.forwardFriction = forward;
+        rearLeft.forwardFriction   = forward;
+        rearRight.forwardFriction  = forward;
+
+        frontLeft.sidewaysFriction  = frontSideways;
+        frontRight.sidewaysFriction = frontSideways;
+        rearLeft.sidewaysFriction   = rearSideways;
+        rearRight.sidewaysFriction  = rearSideways;
+
+        // The handbrake code dials the rear between this baseline and a looser slide.
+        rearSidewaysCurve     = rearSideways;
+        baseSidewaysStiffness = rearGrip;
+        currentRearStiffness  = rearGrip;
     }
 
     void OnEnable()  => input.Player.Enable();
@@ -82,16 +139,29 @@ public class CarController : MonoBehaviour
         var move = input.Player.Move.ReadValue<Vector2>();
         SpeedKmh    = rb.linearVelocity.magnitude * 3.6f;
         rawThrottle = move.y;
+        handbrake   = input.Player.Jump.IsPressed();
 
-        currentSteer    = Mathf.Lerp(currentSteer,    move.x * maxSteerAngle, Time.deltaTime * steerSmoothing);
-        currentThrottle = Mathf.Lerp(currentThrottle, move.y,                 Time.deltaTime * throttleSmoothing);
+        // Ease off the steering as speed rises so hard turns can't tip the car.
+        float speedT           = Mathf.Clamp01(SpeedKmh / topSpeedKmh);
+        float steerFactor      = Mathf.Lerp(1f, 1f - highSpeedSteerReduction, speedT);
+        float targetSteer      = move.x * maxSteerAngle * steerFactor;
+
+        currentSteer    = Mathf.Lerp(currentSteer,    targetSteer, Time.deltaTime * steerSmoothing);
+        currentThrottle = Mathf.Lerp(currentThrottle, move.y,      Time.deltaTime * throttleSmoothing);
+
+        // Visuals run in the render loop so the interpolated body and the
+        // wheels stay in lockstep (no juddering "un-round" look).
+        SyncWheelMeshes();
     }
 
     void FixedUpdate()
     {
         ApplySteering();
         ApplyMotor();
-        SyncWheelMeshes();
+        ApplyDrift();
+        ApplyDriftHandling();
+        ApplyAntiRoll();
+        ApplyDownforce();
     }
 
     void ApplySteering()
@@ -140,6 +210,91 @@ public class CarController : MonoBehaviour
                 rb.angularVelocity = Vector3.zero;
             }
         }
+    }
+
+    // Handbrake: while Space is held, smoothly bleed the rear tyres' grip further
+    // (on top of the already-loose rear) for deliberate bigger slides, plus a light
+    // rear brake to help break traction. Releasing eases the grip back smoothly.
+    // Direction/angle of the slide is governed by ApplyDriftHandling below.
+    void ApplyDrift()
+    {
+        float target = handbrake ? driftSidewaysStiffness : baseSidewaysStiffness;
+        currentRearStiffness = Mathf.Lerp(currentRearStiffness, target, Time.fixedDeltaTime * driftGripSmoothing);
+
+        rearSidewaysCurve.stiffness = currentRearStiffness;
+        rearLeft.sidewaysFriction   = rearSidewaysCurve;
+        rearRight.sidewaysFriction  = rearSidewaysCurve;
+
+        if (!handbrake) return;
+
+        rearLeft.brakeTorque  = Mathf.Max(rearLeft.brakeTorque,  driftRearBrake);
+        rearRight.brakeTorque = Mathf.Max(rearRight.brakeTorque, driftRearBrake);
+    }
+
+    // The heart of the Inertial-Drift-style feel. A yaw servo steers the car
+    // toward the rotation rate the player's input is asking for and resists
+    // everything else, so the loose rear end slides in a *controlled* arc
+    // instead of snapping into a spin. A slip-angle limiter is the safety net:
+    // once the car points too far from its direction of travel it's straightened
+    // out. Together these are the "less chaotic" part of the handling.
+    void ApplyDriftHandling()
+    {
+        if (SpeedKmh < 3f) return;
+
+        float yawRate = Vector3.Dot(rb.angularVelocity, transform.up);
+
+        // Positive steer = turn right = positive yaw about the car's up axis.
+        float steerNorm = currentSteer / maxSteerAngle;             // -1..1
+        float targetYaw = steerNorm * (maxDriftYawRate * Mathf.Deg2Rad);
+
+        // Servo toward the requested turn rate: crisp AND self-stabilising.
+        rb.AddTorque(transform.up * ((targetYaw - yawRate) * driftStability), ForceMode.Acceleration);
+
+        // Slip angle: heading vs. actual travel direction. Straighten out past the cap.
+        Vector3 localVel = transform.InverseTransformDirection(rb.linearVelocity);
+        float slipAngle  = Mathf.Atan2(localVel.x, Mathf.Max(0.5f, Mathf.Abs(localVel.z))) * Mathf.Rad2Deg;
+        float over       = Mathf.Abs(slipAngle) - maxDriftAngle;
+        if (over > 0f)
+            rb.AddTorque(transform.up * (-Mathf.Sign(slipAngle) * over * driftCounterStrength), ForceMode.Acceleration);
+    }
+
+    // Anti-roll (stabilizer) bars: for each axle, if one wheel is compressed
+    // more than its partner, push the compressed side up and the loose side
+    // down to resist body roll. This is what keeps the car from tipping over
+    // in hard turns while still allowing grippy, non-drifty cornering.
+    void ApplyAntiRoll()
+    {
+        ApplyAntiRollAxle(frontLeft, frontRight);
+        ApplyAntiRollAxle(rearLeft, rearRight);
+    }
+
+    void ApplyAntiRollAxle(WheelCollider left, WheelCollider right)
+    {
+        float travelL = 1f;
+        float travelR = 1f;
+
+        bool groundedL = left.GetGroundHit(out WheelHit hitL);
+        if (groundedL)
+            travelL = Mathf.Clamp01((-left.transform.InverseTransformPoint(hitL.point).y - left.radius) / left.suspensionDistance);
+
+        bool groundedR = right.GetGroundHit(out WheelHit hitR);
+        if (groundedR)
+            travelR = Mathf.Clamp01((-right.transform.InverseTransformPoint(hitR.point).y - right.radius) / right.suspensionDistance);
+
+        float antiRoll = (travelL - travelR) * antiRollForce;
+
+        if (groundedL)
+            rb.AddForceAtPosition(left.transform.up * -antiRoll, left.transform.position);
+        if (groundedR)
+            rb.AddForceAtPosition(right.transform.up * antiRoll, right.transform.position);
+    }
+
+    // Presses the car onto its wheels harder the faster it goes, keeping grip
+    // through corners without needing a top-heavy amount of tire stiffness.
+    void ApplyDownforce()
+    {
+        float speed = rb.linearVelocity.magnitude;
+        rb.AddForce(-transform.up * (downforce * speed));
     }
 
     void SetMotorTorque(float torque)
