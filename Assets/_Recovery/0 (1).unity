@@ -14,19 +14,19 @@ OcclusionCullingSettings:
 RenderSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 10
-  m_Fog: 1
-  m_FogColor: {r: 1, g: 1, b: 1, a: 1}
+  m_Fog: 0
+  m_FogColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
   m_FogMode: 3
-  m_FogDensity: 0.012
+  m_FogDensity: 0.01
   m_LinearFogStart: 0
   m_LinearFogEnd: 300
-  m_AmbientSkyColor: {r: 0.05, g: 0.06, b: 0.11, a: 1}
+  m_AmbientSkyColor: {r: 0.212, g: 0.227, b: 0.259, a: 1}
   m_AmbientEquatorColor: {r: 0.114, g: 0.125, b: 0.133, a: 1}
   m_AmbientGroundColor: {r: 0.047, g: 0.043, b: 0.035, a: 1}
   m_AmbientIntensity: 1
-  m_AmbientMode: 3
+  m_AmbientMode: 0
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
-  m_SkyboxMaterial: {fileID: 955523799}
+  m_SkyboxMaterial: {fileID: 10304, guid: 0000000000000000f000000000000000, type: 0}
   m_HaloStrength: 0.5
   m_FlareStrength: 1
   m_FlareFadeSpeed: 3
@@ -37,7 +37,7 @@ RenderSettings:
   m_ReflectionBounces: 1
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
-  m_Sun: {fileID: 410087040}
+  m_Sun: {fileID: 0}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -1155,8 +1155,8 @@ Light:
   m_Enabled: 1
   serializedVersion: 12
   m_Type: 1
-  m_Color: {r: 0.55, g: 0.65, b: 0.95, a: 1}
-  m_Intensity: 0.35
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Intensity: 2
   m_Range: 10
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -1218,7 +1218,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 410087039}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.11950935, y: 0.85678667, z: -0.44601488, w: 0.22957532}
+  m_LocalRotation: {x: 0.40821788, y: -0.23456968, z: 0.10938163, w: 0.8754261}
   m_LocalPosition: {x: 0, y: 3, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -3361,42 +3361,6 @@ WheelCollider:
   m_LayerOverridePriority: 0
   m_Enabled: 1
   m_ProvidesContacts: 0
---- !u!21 &955523799
-Material:
-  serializedVersion: 8
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: NightSky
-  m_Shader: {fileID: 106, guid: 0000000000000000f000000000000000, type: 0}
-  m_Parent: {fileID: 0}
-  m_ModifiedSerializedProperties: 0
-  m_ValidKeywords:
-  - _SUNDISK_HIGH_QUALITY
-  m_InvalidKeywords: []
-  m_LightmapFlags: 4
-  m_EnableInstancingVariants: 0
-  m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
-  stringTagMap: {}
-  disabledShaderPasses: []
-  m_LockedProperties: 
-  m_SavedProperties:
-    serializedVersion: 3
-    m_TexEnvs: []
-    m_Ints: []
-    m_Floats:
-    - _AtmosphereThickness: 0.4
-    - _Exposure: 0.35
-    - _SunDisk: 2
-    - _SunSize: 0.02
-    - _SunSizeConvergence: 5
-    m_Colors:
-    - _GroundColor: {r: 0.02, g: 0.02, b: 0.03, a: 1}
-    - _SkyTint: {r: 0.05, g: 0.06, b: 0.14, a: 1}
-  m_BuildTextureStacks: []
-  m_AllowLocking: 1
 --- !u!1 &1006027268
 GameObject:
   m_ObjectHideFlags: 0
@@ -5877,8 +5841,6 @@ GameObject:
   - component: {fileID: 1925623071}
   - component: {fileID: 1925623073}
   - component: {fileID: 1925623074}
-  - component: {fileID: 1925623075}
-  - component: {fileID: 1925623076}
   m_Layer: 0
   m_Name: car
   m_TagString: Untagged
@@ -5950,19 +5912,19 @@ MonoBehaviour:
   meshFrontRight: {fileID: 626338347}
   meshRearLeft: {fileID: 1573183902}
   meshRearRight: {fileID: 1919354015}
-  motorTorque: 1500
+  motorTorque: 1200
   brakeTorque: 3000
   maxSteerAngle: 28
-  topSpeedKmh: 120
+  topSpeedKmh: 80
   steerSmoothing: 6
   throttleSmoothing: 3
-  gripAssist: 2.8
-  driftStability: 6
-  maxDriftYawRate: 105
-  frontGrip: 2.5
-  rearGrip: 1.8
-  handbrakeGrip: 0.2
-  driftSidewaysStiffness: 0.6
+  frontGrip: 3.2
+  rearGrip: 1.6
+  driftStability: 4.5
+  maxDriftYawRate: 90
+  maxDriftAngle: 38
+  driftCounterStrength: 5
+  driftSidewaysStiffness: 0.7
   driftGripSmoothing: 8
   driftRearBrake: 200
   wheelMeshRotationOffset: {x: 0, y: 0, z: 0}
@@ -5970,7 +5932,7 @@ MonoBehaviour:
   antiRollForce: 6000
   downforce: 80
   maxAngularVelocity: 3.5
-  highSpeedSteerReduction: 0.12
+  highSpeedSteerReduction: 0.3
 --- !u!65 &1925623074
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -5992,56 +5954,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1.8, y: 1, z: 3.8}
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &1925623075
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1925623070}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f6adb1755fab423ebed3ed06d1f63f52, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::DriftEffects
-  wheels: []
-  slipThreshold: 0.35
-  slipFull: 0.9
-  minSpeedKmh: 4
-  skidMarks: 1
-  markWidth: 0.28
-  markLifetime: 9
-  markColor: {r: 0.02, g: 0.02, b: 0.02, a: 0.75}
-  smoke: 1
-  smokeColor: {r: 0.78, g: 0.8, b: 0.85, a: 0.45}
-  smokeRate: 55
---- !u!114 &1925623076
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1925623070}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 13a0b2872df746ce9acb73d184dc8743, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::NightAtmosphere
-  sun: {fileID: 410087040}
-  moonColor: {r: 0.55, g: 0.65, b: 0.95, a: 1}
-  moonIntensity: 0.35
-  moonAngles: {x: 55, y: 150, z: 0}
-  ambientColor: {r: 0.05, g: 0.06, b: 0.11, a: 1}
-  fogColor: {r: 1, g: 1, b: 1, a: 1}
-  fogDensity: 0.012
-  skyTint: {r: 0.05, g: 0.06, b: 0.14, a: 1}
-  skyGround: {r: 0.02, g: 0.02, b: 0.03, a: 1}
-  skyExposure: 0.35
-  enablePostProcessing: 1
-  bloomIntensity: 1.1
-  bloomThreshold: 0.8
-  vignette: 0.35
-  colorFilter: {r: 0.85, g: 0.9, b: 1, a: 1}
 --- !u!1 &1929466436
 GameObject:
   m_ObjectHideFlags: 0

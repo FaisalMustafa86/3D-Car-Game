@@ -21,28 +21,30 @@ public class CarController : MonoBehaviour
     [SerializeField] float brakeTorque = 3000f;
     [SerializeField] float maxSteerAngle = 28f;
     [SerializeField] float topSpeedKmh = 80f;
-    [SerializeField] float steerSmoothing = 6f;
+    [Tooltip("Steering response. Higher = snappier / more immediate.")]
+    [SerializeField] float steerSmoothing = 10f;
     [SerializeField] float throttleSmoothing = 3f;
 
-    [Header("Grip (Inertial-Drift style)")]
-    [Tooltip("Front tyre sideways grip. Keep high so the steering always has authority to place the car.")]
-    [SerializeField] float frontGrip = 3.2f;
-    [Tooltip("Rear tyre sideways grip. Lower = the back slides out more readily, giving the drift-into-corners feel. Raise for a grippier, tamer car.")]
-    [SerializeField] float rearGrip = 1.6f;
+    [Header("Drift Feel — main dials")]
+    [Tooltip("THE key dial. How quickly the car's momentum swings to follow where the nose points. HIGHER = grippier, more responsive, drifts less. LOWER = looser, bigger slides. Tune this first.")]
+    [SerializeField] float gripAssist = 2.8f;
+    [Tooltip("Turn-in sharpness: how hard the car rotates toward your steering. Higher = snappier, more eager to rotate into a drift.")]
+    [SerializeField] float driftStability = 6f;
+    [Tooltip("Fastest the car rotates from steering (deg/sec). Higher = quicker direction changes / easier to swing the tail round.")]
+    [SerializeField] float maxDriftYawRate = 105f;
 
-    [Header("Drift Stability (raise to be less chaotic)")]
-    [Tooltip("How hard the car is servo-steered toward the rotation your input asks for. This both makes drifts responsive AND resists spinning out — the main anti-chaos dial.")]
-    [SerializeField] float driftStability = 4.5f;
-    [Tooltip("Fastest the car will rotate (deg/sec) from steering while sliding. Higher = quicker, wilder direction changes.")]
-    [SerializeField] float maxDriftYawRate = 90f;
-    [Tooltip("The slide is held within this angle (deg) between where the car points and where it's actually travelling. Bigger = wilder drift angles.")]
-    [SerializeField] float maxDriftAngle = 38f;
-    [Tooltip("How firmly the car straightens once the slide exceeds Max Drift Angle. The safety net against full spins.")]
-    [SerializeField] float driftCounterStrength = 5f;
+    [Header("Tyre Grip (secondary)")]
+    [Tooltip("Front tyre sideways grip. Steering authority at low speed.")]
+    [SerializeField] float frontGrip = 2.5f;
+    [Tooltip("Rear tyre sideways grip. Low-speed grounding; at speed the Grip Assist dial does the real work.")]
+    [SerializeField] float rearGrip = 1.8f;
 
     [Header("Handbrake (hold Space / gamepad South)")]
-    [Tooltip("Rear grip while the handbrake is held, for deliberate bigger slides. Lower = looser.")]
-    [SerializeField] float driftSidewaysStiffness = 0.7f;
+    [Tooltip("Fraction of Grip Assist kept while the handbrake is held. LOWER = the momentum lets go and the car slides big. 0.2 ≈ effortless deliberate drift.")]
+    [Range(0f, 1f)]
+    [SerializeField] float handbrakeGrip = 0.2f;
+    [Tooltip("Rear tyre grip while handbraking, for extra looseness.")]
+    [SerializeField] float driftSidewaysStiffness = 0.6f;
     [Tooltip("How quickly the rear tyres lose / regain grip on press / release. Higher = snappier, lower = smoother.")]
     [SerializeField] float driftGripSmoothing = 8f;
     [Tooltip("Light rear brake applied while handbraking to help break traction.")]
@@ -63,7 +65,7 @@ public class CarController : MonoBehaviour
     [SerializeField] float maxAngularVelocity = 3.5f;
     [Tooltip("How much steering is reduced at top speed (0 = none, 1 = steering fully cut). Prevents fast-turn flips.")]
     [Range(0f, 1f)]
-    [SerializeField] float highSpeedSteerReduction = 0.3f;
+    [SerializeField] float highSpeedSteerReduction = 0.12f;
 
     public float SpeedKmh { get; private set; }
 
@@ -78,6 +80,7 @@ public class CarController : MonoBehaviour
     WheelFrictionCurve rearSidewaysCurve;
     float baseSidewaysStiffness;
     float currentRearStiffness;
+    float currentGrip;
     bool handbrake;
 
     void Awake()
@@ -90,6 +93,7 @@ public class CarController : MonoBehaviour
         rb.interpolation = RigidbodyInterpolation.Interpolate;
 
         input = new InputSystem_Actions();
+        currentGrip = gripAssist;
 
         ConfigureWheelFriction();
     }
@@ -160,6 +164,7 @@ public class CarController : MonoBehaviour
         ApplyMotor();
         ApplyDrift();
         ApplyDriftHandling();
+        ApplyGripAssist();
         ApplyAntiRoll();
         ApplyDownforce();
     }
@@ -231,31 +236,48 @@ public class CarController : MonoBehaviour
         rearRight.brakeTorque = Mathf.Max(rearRight.brakeTorque, driftRearBrake);
     }
 
-    // The heart of the Inertial-Drift-style feel. A yaw servo steers the car
-    // toward the rotation rate the player's input is asking for and resists
-    // everything else, so the loose rear end slides in a *controlled* arc
-    // instead of snapping into a spin. A slip-angle limiter is the safety net:
-    // once the car points too far from its direction of travel it's straightened
-    // out. Together these are the "less chaotic" part of the handling.
+    // Turn-in servo: rotates the car toward the yaw rate the player's steering is
+    // asking for (and resists any rotation they didn't ask for). This is what makes
+    // steering feel crisp and eager, and stops the tail snapping into a spin.
     void ApplyDriftHandling()
     {
         if (SpeedKmh < 3f) return;
 
-        float yawRate = Vector3.Dot(rb.angularVelocity, transform.up);
-
-        // Positive steer = turn right = positive yaw about the car's up axis.
+        float yawRate   = Vector3.Dot(rb.angularVelocity, transform.up);
         float steerNorm = currentSteer / maxSteerAngle;             // -1..1
+        // Positive steer = turn right = positive yaw about the car's up axis.
         float targetYaw = steerNorm * (maxDriftYawRate * Mathf.Deg2Rad);
 
-        // Servo toward the requested turn rate: crisp AND self-stabilising.
         rb.AddTorque(transform.up * ((targetYaw - yawRate) * driftStability), ForceMode.Acceleration);
+    }
 
-        // Slip angle: heading vs. actual travel direction. Straighten out past the cap.
-        Vector3 localVel = transform.InverseTransformDirection(rb.linearVelocity);
-        float slipAngle  = Mathf.Atan2(localVel.x, Mathf.Max(0.5f, Mathf.Abs(localVel.z))) * Mathf.Rad2Deg;
-        float over       = Mathf.Abs(slipAngle) - maxDriftAngle;
-        if (over > 0f)
-            rb.AddTorque(transform.up * (-Mathf.Sign(slipAngle) * over * driftCounterStrength), ForceMode.Acceleration);
+    // Grip assist (velocity redirection) — the heart of the "effortless" feel.
+    // Each step the car's horizontal momentum is swung toward wherever the nose is
+    // pointing, at 'gripAssist' rad/s. Because the nose is what the servo/steering
+    // controls, the car reliably GOES WHERE YOU POINT while any gap between heading
+    // and travel shows up as a controllable drift angle. Higher grip = tighter and
+    // more responsive; the handbrake drops it so the car slides big on demand.
+    void ApplyGripAssist()
+    {
+        Vector3 v    = rb.linearVelocity;
+        Vector3 flat = new Vector3(v.x, 0f, v.z);
+        float speed  = flat.magnitude;
+        if (speed < 1.5f) return;
+
+        Vector3 nose = transform.forward;
+        nose.y = 0f;
+        if (nose.sqrMagnitude < 0.0001f) return;
+        nose.Normalize();
+
+        // Follow the nose forwards or backwards depending on travel direction.
+        float travelDir = Vector3.Dot(flat, nose) < 0f ? -1f : 1f;
+        Vector3 target  = nose * travelDir;
+
+        float targetGrip = handbrake ? gripAssist * handbrakeGrip : gripAssist;
+        currentGrip = Mathf.Lerp(currentGrip, targetGrip, Time.fixedDeltaTime * driftGripSmoothing);
+
+        Vector3 newDir = Vector3.RotateTowards(flat / speed, target, currentGrip * Time.fixedDeltaTime, 0f);
+        rb.linearVelocity = new Vector3(newDir.x * speed, v.y, newDir.z * speed);
     }
 
     // Anti-roll (stabilizer) bars: for each axle, if one wheel is compressed
