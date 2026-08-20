@@ -19,6 +19,11 @@ public class CarController : MonoBehaviour
     [Header("Driving Feel")]
     [SerializeField] float motorTorque = 1200f;
     [SerializeField] float brakeTorque = 3000f;
+    [Tooltip("Rolling resistance while coasting with no input. LOW = long, floaty glide (relaxing). Higher = the car slows sooner when you lift off.")]
+    [SerializeField] float coastDrag = 25f;
+    [Tooltip("Reverse speed cap as a fraction of top speed.")]
+    [Range(0.2f, 1f)]
+    [SerializeField] float reverseSpeedFraction = 0.6f;
     [SerializeField] float maxSteerAngle = 28f;
     [SerializeField] float topSpeedKmh = 80f;
     [Tooltip("Steering response. Higher = snappier / more immediate.")]
@@ -68,6 +73,10 @@ public class CarController : MonoBehaviour
     [SerializeField] float highSpeedSteerReduction = 0.12f;
 
     public float SpeedKmh { get; private set; }
+    // Read-outs for effects/audio.
+    public float Throttle { get; private set; }     // -1..1, smoothed input
+    public bool  Handbrake => handbrake;
+    public float SlipAmount { get; private set; }    // 0..1, how sideways the car is sliding
 
     Rigidbody rb;
     InputSystem_Actions input;
@@ -152,6 +161,14 @@ public class CarController : MonoBehaviour
 
         currentSteer    = Mathf.Lerp(currentSteer,    targetSteer, Time.deltaTime * steerSmoothing);
         currentThrottle = Mathf.Lerp(currentThrottle, move.y,      Time.deltaTime * throttleSmoothing);
+        Throttle        = currentThrottle;
+
+        // Slip = how much of the car's motion is sideways vs. forward. Used by
+        // audio (tyre screech) and could drive effects. Ramps in above walking pace.
+        Vector3 flatVel = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
+        float lateral   = Mathf.Abs(Vector3.Dot(flatVel, transform.right));
+        float speedGate  = Mathf.Clamp01((SpeedKmh - 5f) / 15f);
+        SlipAmount      = Mathf.Clamp01(lateral / 6f) * speedGate;
 
         // Visuals run in the render loop so the interpolated body and the
         // wheels stay in lockstep (no juddering "un-round" look).
@@ -187,9 +204,9 @@ public class CarController : MonoBehaviour
             SetMotorTorque(currentThrottle * motorTorque * speedFactor);
             SetBrakeTorque(0f);
         }
-        else if (rawThrottle < -0.01f && forwardSpeed > 0.5f)
+        else if (rawThrottle < -0.01f && forwardSpeed > 1f)
         {
-            // Brake while rolling forward
+            // Brake while still rolling forward
             SetMotorTorque(0f);
             float b = Mathf.Abs(currentThrottle) * brakeTorque;
             frontLeft.brakeTorque  = b;
@@ -199,20 +216,30 @@ public class CarController : MonoBehaviour
         }
         else if (rawThrottle < -0.01f)
         {
-            // Reverse
-            float reverseLimit  = topSpeedKmh * 0.4f;
+            // Reverse — usable speed and full torque so it isn't a crawl.
+            float reverseLimit  = topSpeedKmh * reverseSpeedFraction;
             float reverseFactor = Mathf.Clamp01(1f - SpeedKmh / reverseLimit);
-            SetMotorTorque(currentThrottle * motorTorque * 0.8f * reverseFactor);
+            SetMotorTorque(currentThrottle * motorTorque * reverseFactor);
             SetBrakeTorque(0f);
         }
         else
         {
+            // No input: glide freely, then hold firmly once nearly stopped so
+            // the car never creeps. Light coast drag keeps momentum for a
+            // relaxing roll instead of braking like an anchor.
             SetMotorTorque(0f);
-            SetBrakeTorque(400f);
-            if (SpeedKmh < 0.5f)
+            if (SpeedKmh < 1.5f)
             {
-                rb.linearVelocity  = Vector3.zero;
-                rb.angularVelocity = Vector3.zero;
+                SetBrakeTorque(brakeTorque);
+                if (SpeedKmh < 0.5f)
+                {
+                    rb.linearVelocity  = Vector3.zero;
+                    rb.angularVelocity = Vector3.zero;
+                }
+            }
+            else
+            {
+                SetBrakeTorque(coastDrag);
             }
         }
     }
@@ -246,7 +273,11 @@ public class CarController : MonoBehaviour
         float yawRate   = Vector3.Dot(rb.angularVelocity, transform.up);
         float steerNorm = currentSteer / maxSteerAngle;             // -1..1
         // Positive steer = turn right = positive yaw about the car's up axis.
-        float targetYaw = steerNorm * (maxDriftYawRate * Mathf.Deg2Rad);
+        // Reversing flips that relationship, so flip the target yaw when the
+        // car is actually travelling backwards — otherwise the servo cancels
+        // the player's steering and the car won't turn in reverse.
+        float travelSign = Vector3.Dot(rb.linearVelocity, transform.forward) < 0f ? -1f : 1f;
+        float targetYaw  = steerNorm * travelSign * (maxDriftYawRate * Mathf.Deg2Rad);
 
         rb.AddTorque(transform.up * ((targetYaw - yawRate) * driftStability), ForceMode.Acceleration);
     }
