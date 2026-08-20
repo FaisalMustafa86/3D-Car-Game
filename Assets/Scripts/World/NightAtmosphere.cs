@@ -48,13 +48,36 @@ public class NightAtmosphere : MonoBehaviour
 
     Material skyboxMat;
     GameObject postVolumeGo;
+    Bloom bloom;
+    ColorAdjustments colorAdj;
+    Vignette vig;
+    Tonemapping tone;
 
     void OnEnable()
     {
         ApplyEnvironment();
-        if (Application.isPlaying && enablePostProcessing)
-            SetupPostProcessing();
+        BuildPostProcessing();
     }
+
+    void OnDisable()
+    {
+        TeardownPostProcessing();
+    }
+
+#if UNITY_EDITOR
+    // Live-tune from the inspector: re-apply the look whenever a field changes.
+    // Deferred so we don't touch the scene mid-validate.
+    void OnValidate()
+    {
+        if (!isActiveAndEnabled) return;
+        UnityEditor.EditorApplication.delayCall += () =>
+        {
+            if (this == null || !isActiveAndEnabled) return;
+            ApplyEnvironment();
+            BuildPostProcessing();
+        };
+    }
+#endif
 
     [ContextMenu("Apply Night Atmosphere")]
     public void ApplyEnvironment()
@@ -105,7 +128,73 @@ public class NightAtmosphere : MonoBehaviour
         return null;
     }
 
-    void SetupPostProcessing()
+    // Builds the post-processing volume in BOTH edit and play mode so the night
+    // look is visible in the Game view while tuning. The volume is a hidden,
+    // non-saved object so it never clutters the hierarchy or dirties the scene.
+    [ContextMenu("Rebuild Post Processing")]
+    void BuildPostProcessing()
+    {
+        EnableCameraPost();
+
+        if (!enablePostProcessing)
+        {
+            TeardownPostProcessing();
+            return;
+        }
+
+        if (postVolumeGo == null)
+        {
+            postVolumeGo = new GameObject("NightPostVolume")
+            {
+                hideFlags = HideFlags.HideAndDontSave
+            };
+            postVolumeGo.transform.SetParent(transform, false);
+
+            var volume = postVolumeGo.AddComponent<Volume>();
+            volume.isGlobal = true;
+            volume.priority = 10;
+
+            var profile = ScriptableObject.CreateInstance<VolumeProfile>();
+            profile.hideFlags = HideFlags.HideAndDontSave;
+            volume.sharedProfile = profile;
+
+            bloom    = profile.Add<Bloom>();
+            colorAdj = profile.Add<ColorAdjustments>();
+            vig      = profile.Add<Vignette>();
+            tone     = profile.Add<Tonemapping>();
+            tone.mode.Override(TonemappingMode.Neutral);
+        }
+
+        RefreshPostValues();
+    }
+
+    // Push the serialized fields onto the live volume — lets the inspector tune
+    // the look without rebuilding the volume each time.
+    void RefreshPostValues()
+    {
+        if (bloom != null)
+        {
+            bloom.intensity.Override(bloomIntensity);
+            bloom.threshold.Override(bloomThreshold);
+            bloom.scatter.Override(0.72f);
+            bloom.tint.Override(new Color(0.8f, 0.85f, 1f));
+        }
+        if (colorAdj != null)
+        {
+            colorAdj.postExposure.Override(-0.15f);
+            colorAdj.contrast.Override(12f);
+            colorAdj.colorFilter.Override(colorFilter);
+            colorAdj.saturation.Override(-6f);
+        }
+        if (vig != null)
+        {
+            vig.intensity.Override(vignette);
+            vig.smoothness.Override(0.45f);
+            vig.color.Override(new Color(0.02f, 0.02f, 0.05f));
+        }
+    }
+
+    void EnableCameraPost()
     {
         // Post-processing must be enabled on the camera for the volume to show.
         Camera cam = Camera.main;
@@ -114,37 +203,14 @@ public class NightAtmosphere : MonoBehaviour
             var data = cam.GetUniversalAdditionalCameraData();
             if (data != null) data.renderPostProcessing = true;
         }
+    }
 
-        if (postVolumeGo != null) return;
-
-        postVolumeGo = new GameObject("NightPostVolume");
-        postVolumeGo.transform.SetParent(transform, false);
-
-        var volume = postVolumeGo.AddComponent<Volume>();
-        volume.isGlobal = true;
-        volume.priority = 10;
-
-        var profile = ScriptableObject.CreateInstance<VolumeProfile>();
-        volume.sharedProfile = profile;
-
-        var bloom = profile.Add<Bloom>();
-        bloom.intensity.Override(bloomIntensity);
-        bloom.threshold.Override(bloomThreshold);
-        bloom.scatter.Override(0.72f);
-        bloom.tint.Override(new Color(0.8f, 0.85f, 1f));
-
-        var color = profile.Add<ColorAdjustments>();
-        color.postExposure.Override(-0.15f);
-        color.contrast.Override(12f);
-        color.colorFilter.Override(colorFilter);
-        color.saturation.Override(-6f);
-
-        var vig = profile.Add<Vignette>();
-        vig.intensity.Override(vignette);
-        vig.smoothness.Override(0.45f);
-        vig.color.Override(new Color(0.02f, 0.02f, 0.05f));
-
-        var tone = profile.Add<Tonemapping>();
-        tone.mode.Override(TonemappingMode.Neutral);
+    void TeardownPostProcessing()
+    {
+        if (postVolumeGo == null) return;
+        if (Application.isPlaying) Destroy(postVolumeGo);
+        else                       DestroyImmediate(postVolumeGo);
+        postVolumeGo = null;
+        bloom = null; colorAdj = null; vig = null; tone = null;
     }
 }

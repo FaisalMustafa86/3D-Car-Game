@@ -77,6 +77,8 @@ public class CarController : MonoBehaviour
     public float Throttle { get; private set; }     // -1..1, smoothed input
     public bool  Handbrake => handbrake;
     public float SlipAmount { get; private set; }    // 0..1, how sideways the car is sliding
+    public bool  IsBraking  { get; private set; }    // foot brake applied while rolling forward
+    public bool  IsReversing { get; private set; }   // driving in reverse
 
     Rigidbody rb;
     InputSystem_Actions input;
@@ -194,9 +196,10 @@ public class CarController : MonoBehaviour
 
     void ApplyMotor()
     {
-        float t = currentThrottle;
         float forwardSpeed = Vector3.Dot(rb.linearVelocity, transform.forward);
         float speedFactor  = Mathf.Clamp01(1f - SpeedKmh / topSpeedKmh);
+        IsBraking   = false;
+        IsReversing = false;
 
         if (rawThrottle > 0.01f)
         {
@@ -207,6 +210,7 @@ public class CarController : MonoBehaviour
         else if (rawThrottle < -0.01f && forwardSpeed > 1f)
         {
             // Brake while still rolling forward
+            IsBraking = true;
             SetMotorTorque(0f);
             float b = Mathf.Abs(currentThrottle) * brakeTorque;
             frontLeft.brakeTorque  = b;
@@ -217,6 +221,7 @@ public class CarController : MonoBehaviour
         else if (rawThrottle < -0.01f)
         {
             // Reverse — usable speed and full torque so it isn't a crawl.
+            IsReversing = true;
             float reverseLimit  = topSpeedKmh * reverseSpeedFraction;
             float reverseFactor = Mathf.Clamp01(1f - SpeedKmh / reverseLimit);
             SetMotorTorque(currentThrottle * motorTorque * reverseFactor);

@@ -26,7 +26,7 @@ RenderSettings:
   m_AmbientIntensity: 1
   m_AmbientMode: 3
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
-  m_SkyboxMaterial: {fileID: 550563076}
+  m_SkyboxMaterial: {fileID: 1646989696}
   m_HaloStrength: 0.5
   m_FlareStrength: 1
   m_FlareFadeSpeed: 3
@@ -18059,11 +18059,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 80428c4e69adf31f4b8bb56e7738e5dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CameraController
-  target: {fileID: 1925623072}
+  target: {fileID: 1853123350}
   offset: {x: 0, y: 3, z: -7}
   positionSmoothing: 5
   rotationSmoothing: 3
   lookHeightOffset: 1
+  car: {fileID: 1925623073}
+  baseFov: 60
+  fovKick: 12
+  fovKickSpeed: 80
+  fovSmoothTime: 0.25
+  speedSmoothTime: 0.15
+  speedPullback: 1.2
 --- !u!1 &331021167
 GameObject:
   m_ObjectHideFlags: 0
@@ -28915,42 +28922,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 549238676}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
---- !u!21 &550563076
-Material:
-  serializedVersion: 8
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: NightSky
-  m_Shader: {fileID: 106, guid: 0000000000000000f000000000000000, type: 0}
-  m_Parent: {fileID: 0}
-  m_ModifiedSerializedProperties: 0
-  m_ValidKeywords:
-  - _SUNDISK_HIGH_QUALITY
-  m_InvalidKeywords: []
-  m_LightmapFlags: 4
-  m_EnableInstancingVariants: 0
-  m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
-  stringTagMap: {}
-  disabledShaderPasses: []
-  m_LockedProperties: 
-  m_SavedProperties:
-    serializedVersion: 3
-    m_TexEnvs: []
-    m_Ints: []
-    m_Floats:
-    - _AtmosphereThickness: 0.4
-    - _Exposure: 0.35
-    - _SunDisk: 2
-    - _SunSize: 0.02
-    - _SunSizeConvergence: 5
-    m_Colors:
-    - _GroundColor: {r: 0.02, g: 0.02, b: 0.03, a: 1}
-    - _SkyTint: {r: 0.05, g: 0.06, b: 0.14, a: 1}
-  m_BuildTextureStacks: []
-  m_AllowLocking: 1
 --- !u!21 &551261164
 Material:
   serializedVersion: 8
@@ -28968,8 +28939,10 @@ Material:
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
   m_CustomRenderQueue: -1
-  stringTagMap: {}
-  disabledShaderPasses: []
+  stringTagMap:
+    RenderType: Opaque
+  disabledShaderPasses:
+  - MOTIONVECTORS
   m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
@@ -32776,8 +32749,10 @@ Material:
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
   m_CustomRenderQueue: -1
-  stringTagMap: {}
-  disabledShaderPasses: []
+  stringTagMap:
+    RenderType: Opaque
+  disabledShaderPasses:
+  - MOTIONVECTORS
   m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
@@ -47765,8 +47740,10 @@ Material:
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
   m_CustomRenderQueue: -1
-  stringTagMap: {}
-  disabledShaderPasses: []
+  stringTagMap:
+    RenderType: Opaque
+  disabledShaderPasses:
+  - MOTIONVECTORS
   m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
@@ -48155,8 +48132,10 @@ Material:
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
   m_CustomRenderQueue: -1
-  stringTagMap: {}
-  disabledShaderPasses: []
+  stringTagMap:
+    RenderType: Opaque
+  disabledShaderPasses:
+  - MOTIONVECTORS
   m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
@@ -50520,8 +50499,10 @@ Material:
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
   m_CustomRenderQueue: -1
-  stringTagMap: {}
-  disabledShaderPasses: []
+  stringTagMap:
+    RenderType: Opaque
+  disabledShaderPasses:
+  - MOTIONVECTORS
   m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
@@ -59295,8 +59276,10 @@ Material:
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
   m_CustomRenderQueue: -1
-  stringTagMap: {}
-  disabledShaderPasses: []
+  stringTagMap:
+    RenderType: Opaque
+  disabledShaderPasses:
+  - MOTIONVECTORS
   m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
@@ -84701,8 +84684,10 @@ Material:
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
   m_CustomRenderQueue: -1
-  stringTagMap: {}
-  disabledShaderPasses: []
+  stringTagMap:
+    RenderType: Opaque
+  disabledShaderPasses:
+  - MOTIONVECTORS
   m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
@@ -88699,6 +88684,42 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1645666823}
   m_Mesh: {fileID: 852208000624443197, guid: 891257a3ef6432cc7aa89643bb90472c, type: 3}
+--- !u!21 &1646989696
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: NightSky
+  m_Shader: {fileID: 106, guid: 0000000000000000f000000000000000, type: 0}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords:
+  - _SUNDISK_HIGH_QUALITY
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Ints: []
+    m_Floats:
+    - _AtmosphereThickness: 0.4
+    - _Exposure: 0.35
+    - _SunDisk: 2
+    - _SunSize: 0.02
+    - _SunSizeConvergence: 5
+    m_Colors:
+    - _GroundColor: {r: 0.02, g: 0.02, b: 0.03, a: 1}
+    - _SkyTint: {r: 0.05, g: 0.06, b: 0.14, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1
 --- !u!1 &1647769020
 GameObject:
   m_ObjectHideFlags: 0
@@ -100375,8 +100396,10 @@ Material:
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
   m_CustomRenderQueue: -1
-  stringTagMap: {}
-  disabledShaderPasses: []
+  stringTagMap:
+    RenderType: Opaque
+  disabledShaderPasses:
+  - MOTIONVECTORS
   m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
@@ -105761,6 +105784,7 @@ GameObject:
   - component: {fileID: 1925623075}
   - component: {fileID: 1925623076}
   - component: {fileID: 1925623077}
+  - component: {fileID: 1925623078}
   m_Layer: 0
   m_Name: car
   m_TagString: Untagged
@@ -105834,6 +105858,8 @@ MonoBehaviour:
   meshRearRight: {fileID: 1919354015}
   motorTorque: 1000
   brakeTorque: 3000
+  coastDrag: 25
+  reverseSpeedFraction: 0.6
   maxSteerAngle: 28
   topSpeedKmh: 120
   steerSmoothing: 6
@@ -105946,6 +105972,43 @@ MonoBehaviour:
   screechVolume: 0.5
   screechSmoothing: 10
   referenceTopSpeedKmh: 80
+--- !u!114 &1925623078
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1925623070}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b748fc457cb72123296e7a992dc93d7a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CarLights
+  car: {fileID: 1925623073}
+  lightsOn: 1
+  autoFitToBody: 1
+  lampSpread: 0.8
+  lampPush: 0.08
+  enableHeadlights: 1
+  leftHeadlightPos: {x: -0.6, y: 0, z: 1.9}
+  rightHeadlightPos: {x: 0.6, y: 0.6, z: 1.9}
+  headlightColor: {r: 1, g: 0.96, b: 0.85, a: 1}
+  headlightIntensity: 3.5
+  headlightRange: 35
+  headlightAngle: 40
+  headlightPitch: 6
+  headlightShadows: 0
+  headlightGlow: 4
+  leftTailPos: {x: -0.6, y: 0.6, z: -1.9}
+  rightTailPos: {x: 0.6, y: 0.6, z: -1.9}
+  runningColor: {r: 1, g: 0.05, b: 0.05, a: 1}
+  runningIntensity: 1.2
+  brakeColor: {r: 1, g: 0.02, b: 0.02, a: 1}
+  brakeIntensity: 6
+  reverseColor: {r: 1, g: 1, b: 0.95, a: 1}
+  reverseIntensity: 4
+  lampSize: 0.28
+  brakeResponse: 14
 --- !u!1 &1927211621
 GameObject:
   m_ObjectHideFlags: 0
